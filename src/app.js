@@ -1,0 +1,40 @@
+import express from 'express'
+import cors from 'cors'
+import morgan from 'morgan'
+import productRoutes from './routes/productRoutes.js'
+import categoryRoutes from './routes/categoryRoutes.js'
+import catalogRoutes from './routes/catalogRoutes.js'
+import mediaRoutes from './routes/mediaRoutes.js'
+import inquiryRoutes from './routes/inquiryRoutes.js'
+import { errorHandler, notFound } from './middleware/errorHandler.js'
+
+const app = express()
+
+const corsOptions = {
+  origin: process.env.CLIENT_ORIGIN?.split(',') || '*',
+  credentials: true,
+}
+
+app.use(cors(corsOptions))
+app.use(express.json({ limit: '5mb' }))
+app.use(express.urlencoded({ extended: true }))
+
+if (process.env.NODE_ENV !== 'test') {
+  app.use(morgan('dev'))
+}
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() })
+})
+
+app.use('/api/products', productRoutes)
+app.use('/api/categories', categoryRoutes)
+app.use('/api/catalogs', catalogRoutes)
+app.use('/api/media', mediaRoutes)
+app.use('/api/inquiries', inquiryRoutes)
+
+app.use(notFound)
+app.use(errorHandler)
+
+export default app
+
