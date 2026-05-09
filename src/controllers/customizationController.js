@@ -4,25 +4,36 @@ import Customization from '../models/Customization.js'
 import { sendInquiryEmail } from '../services/emailService.js'
 import { customizationSchema } from '../validations/customizationValidation.js'
 import multer from 'multer'
-import { CloudinaryStorage } from 'multer-storage-cloudinary'
-import cloudinary from '../config/cloudinary.js'
+import multerS3 from 'multer-s3'
+import { getS3Client } from '../config/aws.js'
 
 // Handle multiple file uploads with custom folder
-const customizationUpload = multer({
-  storage: new CloudinaryStorage({
-    cloudinary,
-    params: async (req, file) => {
-      return {
-        folder: 'dark-desire/customizations',
-        resource_type: 'auto',
-        format: undefined,
-        public_id: undefined,
-      }
-    },
-  }),
-})
+let customizationUpload = null
 
-export const uploadImages = customizationUpload.array('images', 5)
+const getCustomizationUpload = () => {
+  if (!customizationUpload) {
+    const s3 = getS3Client()
+    const bucket = process.env.AWS_S3_BUCKET
+
+    customizationUpload = multer({
+      storage: multerS3({
+        s3,
+        bucket,
+        acl: 'public-read',
+        key: (req, file, cb) => {
+          const timestamp = Date.now()
+          const filename = `${timestamp}-${file.originalname}`
+          cb(null, `dark-desire/customizations/${filename}`)
+        },
+      }),
+    })
+  }
+  return customizationUpload
+}
+
+export const uploadImages = (req, res, next) => {
+  getCustomizationUpload().array('images', 5)(req, res, next)
+}
 
 export const submitCustomization = asyncHandler(async (req, res) => {
   // Validate request body
@@ -38,10 +49,10 @@ export const submitCustomization = asyncHandler(async (req, res) => {
 
   const { name, email, phone, company, country, description } = value
 
-  // Get uploaded images
+  // Get uploaded images (S3 format)
   const images = req.files?.map((file) => ({
-    url: file.path,
-    publicId: file.filename,
+    url: file.location, // S3 provides 'location' for the full URL
+    s3Key: file.key,    // S3 file key
     originalName: file.originalname,
   })) || []
 
