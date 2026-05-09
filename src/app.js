@@ -13,13 +13,15 @@ import { errorHandler, notFound } from './middleware/errorHandler.js'
 const app = express()
 
 const corsOptions = {
-  origin: process.env.CLIENT_ORIGIN?.split(',') || '*',
+  origin: process.env.CLIENT_ORIGIN?.split(',').map(url => url.trim()) || '*',
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }
 
 app.use(cors(corsOptions))
-app.use(express.json({ limit: '50mb' }))
-app.use(express.urlencoded({ extended: true, limit: '50mb' }))
+app.use(express.json({ limit: '100mb' }))
+app.use(express.urlencoded({ extended: true, limit: '100mb' }))
 
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'))
